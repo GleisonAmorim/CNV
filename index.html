@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversão de Imagens para PNG</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        input[type="file"] {
+            margin-top: 20px;
+        }
+
+        .file-info {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Conversor de Imagens para PNG</h1>
+
+    <input type="file" id="image-input" accept="image/*" multiple>
+    <div class="file-info" id="file-info"></div>
+    <button id="convert-btn">Converter para PNG e Gerar ZIP</button>
+
+    <script>
+        const inputFile = document.getElementById('image-input');
+        const convertBtn = document.getElementById('convert-btn');
+        const fileInfo = document.getElementById('file-info');
+        const supportedFormats = ['image/jpeg', 'image/png', 'image/gif'];
+
+        let filesToConvert = [];
+
+        inputFile.addEventListener('change', (e) => {
+            filesToConvert = e.target.files;
+            fileInfo.innerHTML = `Arquivos carregados: ${filesToConvert.length}`;
+        });
+
+        convertBtn.addEventListener('click', () => {
+            if (filesToConvert.length === 0) {
+                alert('Por favor, selecione uma imagem para converter.');
+                return;
+            }
+            convertImagesToZip(filesToConvert);
+        });
+
+        function convertImagesToZip(files) {
+            const zip = new JSZip();
+            const imagesFolder = zip.folder("images");
+
+            // Usando Promises para garantir que todas as imagens sejam convertidas
+            const promises = Array.from(files).map(file => {
+                return new Promise((resolve, reject) => {
+                    if (supportedFormats.includes(file.type)) {
+                        const reader = new FileReader();
+                        reader.onload = function (event) {
+                            const img = new Image();
+                            img.onload = function () {
+                                const canvas = document.createElement('canvas');
+                                const ctx = canvas.getContext('2d');
+                                canvas.width = img.width;
+                                canvas.height = img.height;
+                                ctx.drawImage(img, 0, 0);
+
+                                // Converter para PNG
+                                canvas.toBlob((blob) => {
+                                    const fileName = file.name.replace(/\.[^/.]+$/, "") + '.png';
+                                    imagesFolder.file(fileName, blob);
+                                    resolve();
+                                }, 'image/png');
+                            };
+                            img.src = event.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        alert('Arquivo não suportado. Por favor, selecione uma imagem JPEG ou PNG.');
+                        reject();
+                    }
+                });
+            });
+
+            // Aguarda a conclusão de todas as promessas antes de gerar o ZIP
+            Promise.all(promises).then(() => {
+                zip.generateAsync({ type: "blob" }).then(function (content) {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(content);
+                    link.download = 'imagens_convertidas.zip';
+                    link.click();
+                });
+            }).catch((error) => {
+                console.error('Erro na conversão das imagens', error);
+            });
+        }
+    </script>
+</body>
+
+</html>
