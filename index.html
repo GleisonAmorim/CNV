@@ -7,71 +7,142 @@
     <title>Conversão de Imagens para PNG</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            padding: 20px;
-            background-color: #f4f4f9;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        h1 {
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
             color: #333;
         }
 
-        button {
-            padding: 10px 20px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-            margin-top: 20px;
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
         }
 
-        button:hover {
-            background-color: #218838;
+        h1 {
+            font-size: 28px;
+            color: #444;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .file-input-container {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         input[type="file"] {
-            margin-top: 20px;
+            font-size: 16px;
+            padding: 12px 18px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+            width: 100%;
+            background-color: #fafafa;
+            cursor: pointer;
         }
 
-        .file-info,
-        .progress-info {
+        button {
+            background-color: #007BFF;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
             margin-top: 20px;
+            width: 100%;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover:enabled {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #d6d6d6;
+            cursor: not-allowed;
+        }
+
+        .file-info {
+            text-align: center;
+            font-size: 14px;
+            margin-top: 15px;
+        }
+
+        .progress-info {
+            display: none;
+            margin-top: 30px;
+            text-align: center;
         }
 
         .progress-bar-container {
             width: 100%;
             background-color: #ddd;
-            border-radius: 5px;
+            border-radius: 10px;
             overflow: hidden;
             margin-top: 10px;
         }
 
         .progress-bar {
-            height: 20px;
-            width: 0%;
+            height: 25px;
+            width: 0;
             background-color: #28a745;
             color: white;
             text-align: center;
-            line-height: 20px;
-            font-size: 12px;
+            line-height: 25px;
+            font-size: 14px;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .status-message {
+            font-weight: bold;
+            margin-top: 15px;
+        }
+
+        .status-success {
+            color: #28a745;
+        }
+
+        .status-error {
+            color: #dc3545;
         }
     </style>
 </head>
 
 <body>
-    <h1>Conversor de Imagens para PNG</h1>
+    <div class="container">
+        <h1>Conversor de Imagens para PNG</h1>
 
-    <input type="file" id="image-input" accept="image/png, image/jpeg, image/gif, image/webp" multiple>
-    <div class="file-info" id="file-info"></div>
-    <button id="convert-btn">Converter para PNG e Gerar ZIP</button>
+        <div class="file-input-container">
+            <input type="file" id="image-input" accept="image/png, image/jpeg, image/gif, image/webp" multiple>
+            <div class="file-info" id="file-info">Nenhum arquivo selecionado</div>
+        </div>
 
-    <div class="progress-info" id="progress-info" style="display: none;">
-        <div id="progress-text">Iniciando conversão...</div>
-        <div class="progress-bar-container">
-            <div class="progress-bar" id="progress-bar"></div>
+        <button id="convert-btn" disabled>Converter para PNG e Gerar ZIP</button>
+
+        <div class="progress-info" id="progress-info">
+            <div id="progress-text">Iniciando conversão...</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progress-bar">0%</div>
+            </div>
+            <div class="status-message" id="status-message"></div>
         </div>
     </div>
 
@@ -82,6 +153,7 @@
         const progressInfo = document.getElementById('progress-info');
         const progressText = document.getElementById('progress-text');
         const progressBar = document.getElementById('progress-bar');
+        const statusMessage = document.getElementById('status-message');
         const supportedFormats = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
         let filesToConvert = [];
@@ -89,21 +161,25 @@
         inputFile.addEventListener('change', (e) => {
             filesToConvert = e.target.files;
             fileInfo.innerHTML = `Arquivos carregados: ${filesToConvert.length}`;
+            statusMessage.textContent = '';
+            convertBtn.disabled = false;
         });
 
         convertBtn.addEventListener('click', () => {
             if (filesToConvert.length === 0) {
-                alert('Por favor, selecione uma imagem para converter.');
+                alert('Por favor, selecione uma ou mais imagens.');
                 return;
             }
+
+            convertBtn.disabled = true;
             convertImagesToZip(filesToConvert);
         });
 
-        function updateProgress(current, total) {
+        function updateProgress(current, total, etapa = 'Conversão') {
             const percent = Math.round((current / total) * 100);
             progressBar.style.width = `${percent}%`;
             progressBar.textContent = `${percent}%`;
-            progressText.textContent = `Convertendo imagem ${current} de ${total}...`;
+            progressText.textContent = `${etapa} - ${percent}%`;
         }
 
         function convertImagesToZip(files) {
@@ -111,52 +187,73 @@
             const imagesFolder = zip.folder("images");
 
             progressInfo.style.display = 'block';
-            updateProgress(0, files.length);
+            updateProgress(0, 100);
+            statusMessage.textContent = '';
 
             let converted = 0;
+            const validFiles = Array.from(files).filter(file => supportedFormats.includes(file.type));
 
-            const promises = Array.from(files).map((file, index) => {
+            if (validFiles.length === 0) {
+                statusMessage.textContent = 'Nenhum arquivo válido para conversão.';
+                statusMessage.className = 'status-message status-error';
+                convertBtn.disabled = false;
+                return;
+            }
+
+            const promises = validFiles.map((file, index) => {
                 return new Promise((resolve, reject) => {
-                    if (supportedFormats.includes(file.type)) {
-                        const reader = new FileReader();
-                        reader.onload = function (event) {
-                            const img = new Image();
-                            img.onload = function () {
-                                const canvas = document.createElement('canvas');
-                                const ctx = canvas.getContext('2d');
-                                canvas.width = img.width;
-                                canvas.height = img.height;
-                                ctx.drawImage(img, 0, 0);
+                    const reader = new FileReader();
+                    reader.onload = function (event) {
+                        const img = new Image();
+                        img.onload = function () {
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            ctx.drawImage(img, 0, 0);
 
-                                canvas.toBlob((blob) => {
-                                    const fileName = file.name.replace(/\.[^/.]+$/, "") + '.png';
-                                    imagesFolder.file(fileName, blob);
-                                    converted++;
-                                    updateProgress(converted, files.length);
-                                    resolve();
-                                }, 'image/png');
-                            };
-                            img.src = event.target.result;
+                            canvas.toBlob((blob) => {
+                                const fileName = file.name.replace(/\.[^/.]+$/, "") + '.png';
+                                imagesFolder.file(fileName, blob);
+                                converted++;
+                                updateProgress(converted, validFiles.length, 'Convertendo');
+                                resolve();
+                            }, 'image/png');
                         };
-                        reader.readAsDataURL(file);
-                    } else {
-                        alert('Arquivo não suportado. Por favor, selecione uma imagem JPEG, PNG, GIF ou WEBP.');
-                        reject();
-                    }
+                        img.onerror = () => {
+                            console.error(`Erro ao carregar a imagem: ${file.name}`);
+                            reject();
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.onerror = () => reject();
+                    reader.readAsDataURL(file);
                 });
             });
 
             Promise.all(promises).then(() => {
                 progressText.textContent = "Compactando arquivos ZIP...";
-                zip.generateAsync({ type: "blob" }).then(function (content) {
+                progressBar.style.width = `0%`;
+                progressBar.textContent = `0%`;
+
+                zip.generateAsync({ type: "blob" }, (metadata) => {
+                    updateProgress(metadata.percent, 100, 'Compactando');
+                }).then((content) => {
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(content);
                     link.download = 'imagens_convertidas.zip';
                     link.click();
+
                     progressText.textContent = "Conversão e download concluídos!";
+                    statusMessage.textContent = "✅ Sucesso! As imagens foram convertidas e baixadas.";
+                    statusMessage.className = 'status-message status-success';
+                    convertBtn.disabled = false;
                 });
             }).catch((error) => {
                 console.error('Erro na conversão das imagens', error);
+                statusMessage.textContent = "❌ Ocorreu um erro durante a conversão.";
+                statusMessage.className = 'status-message status-error';
+                convertBtn.disabled = false;
             });
         }
     </script>
