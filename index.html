@@ -36,8 +36,27 @@
             margin-top: 20px;
         }
 
-        .file-info {
+        .file-info,
+        .progress-info {
             margin-top: 20px;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-bar {
+            height: 20px;
+            width: 0%;
+            background-color: #28a745;
+            color: white;
+            text-align: center;
+            line-height: 20px;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -49,10 +68,20 @@
     <div class="file-info" id="file-info"></div>
     <button id="convert-btn">Converter para PNG e Gerar ZIP</button>
 
+    <div class="progress-info" id="progress-info" style="display: none;">
+        <div id="progress-text">Iniciando conversão...</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+    </div>
+
     <script>
         const inputFile = document.getElementById('image-input');
         const convertBtn = document.getElementById('convert-btn');
         const fileInfo = document.getElementById('file-info');
+        const progressInfo = document.getElementById('progress-info');
+        const progressText = document.getElementById('progress-text');
+        const progressBar = document.getElementById('progress-bar');
         const supportedFormats = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
         let filesToConvert = [];
@@ -70,12 +99,23 @@
             convertImagesToZip(filesToConvert);
         });
 
+        function updateProgress(current, total) {
+            const percent = Math.round((current / total) * 100);
+            progressBar.style.width = `${percent}%`;
+            progressBar.textContent = `${percent}%`;
+            progressText.textContent = `Convertendo imagem ${current} de ${total}...`;
+        }
+
         function convertImagesToZip(files) {
             const zip = new JSZip();
             const imagesFolder = zip.folder("images");
 
-            // Usando Promises para garantir que todas as imagens sejam convertidas
-            const promises = Array.from(files).map(file => {
+            progressInfo.style.display = 'block';
+            updateProgress(0, files.length);
+
+            let converted = 0;
+
+            const promises = Array.from(files).map((file, index) => {
                 return new Promise((resolve, reject) => {
                     if (supportedFormats.includes(file.type)) {
                         const reader = new FileReader();
@@ -88,10 +128,11 @@
                                 canvas.height = img.height;
                                 ctx.drawImage(img, 0, 0);
 
-                                // Converter para PNG
                                 canvas.toBlob((blob) => {
                                     const fileName = file.name.replace(/\.[^/.]+$/, "") + '.png';
                                     imagesFolder.file(fileName, blob);
+                                    converted++;
+                                    updateProgress(converted, files.length);
                                     resolve();
                                 }, 'image/png');
                             };
@@ -99,19 +140,20 @@
                         };
                         reader.readAsDataURL(file);
                     } else {
-                    alert('Arquivo não suportado. Por favor, selecione uma imagem JPEG, PNG, GIF ou WEBP.');
+                        alert('Arquivo não suportado. Por favor, selecione uma imagem JPEG, PNG, GIF ou WEBP.');
                         reject();
                     }
                 });
             });
 
-            // Aguarda a conclusão de todas as promessas antes de gerar o ZIP
             Promise.all(promises).then(() => {
+                progressText.textContent = "Compactando arquivos ZIP...";
                 zip.generateAsync({ type: "blob" }).then(function (content) {
                     const link = document.createElement('a');
                     link.href = URL.createObjectURL(content);
                     link.download = 'imagens_convertidas.zip';
                     link.click();
+                    progressText.textContent = "Conversão e download concluídos!";
                 });
             }).catch((error) => {
                 console.error('Erro na conversão das imagens', error);
