@@ -45,7 +45,7 @@
 <body>
     <h1>Conversor de Imagens para PNG</h1>
 
-    <input type="file" id="image-input" accept="image/*" multiple>
+    <input type="file" id="image-input" accept="image/png, image/jpeg, image/gif, image/webp" multiple>
     <div class="file-info" id="file-info"></div>
     <button id="convert-btn">Converter para PNG e Gerar ZIP</button>
 
@@ -99,7 +99,7 @@
                         };
                         reader.readAsDataURL(file);
                     } else {
-                        alert('Arquivo não suportado. Por favor, selecione uma imagem JPEG ou PNG.');
+                    alert('Arquivo não suportado. Por favor, selecione uma imagem JPEG, PNG, GIF ou WEBP.');
                         reject();
                     }
                 });
